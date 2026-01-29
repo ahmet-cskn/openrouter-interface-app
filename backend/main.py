@@ -122,10 +122,6 @@ def _validate_image(img: ImageInput) -> None:
 # -------------------------
 # Routes
 # -------------------------
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
