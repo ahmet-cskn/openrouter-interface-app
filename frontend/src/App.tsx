@@ -1,11 +1,13 @@
 // frontend/src/App.tsx
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import "./App.css";
 
 type Msg = {
   role: "user" | "bot";
   content: string;
   modelLabel?: string; // only for bot messages
+  imageDataUrl?: string; // optional: for user messages with an image preview
+  imageAlt?: string;
 };
 
 type ModelOption = {
@@ -22,11 +24,26 @@ type Chat = {
   messages: Msg[];
 };
 
+type ImageAttachment = {
+  name: string;
+  mimeType: string;
+  dataBase64: string; // raw base64 (no prefix)
+  dataUrl: string; // for preview
+  sizeBytes: number;
+};
+
 const MODELS: ModelOption[] = [
   { key: "trinity_large_preview_free", label: "Trinity Large Preview (free)" },
   { key: "solar_pro_3_free", label: "Solar Pro 3" },
-  { key: "deepseek_r1_0528_free", label: "Deepseek R1 0528" },
+  { key: "deepseek_r1_0528_free", label: "DeepSeek R1 0528 (free)" },
+  { key: "molmo_2_8b_free", label: "Molmo 2 8B (free, vision)" },
 ];
+
+const MODEL_SUPPORTS_IMAGE: Record<string, boolean> = {
+  molmo_2_8b_free: true,
+};
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 
 function getModelLabel(key: string): string {
   return MODELS.find((m) => m.key === key)?.label ?? "Model";
@@ -34,6 +51,11 @@ function getModelLabel(key: string): string {
 
 function makeId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function dataUrlToBase64(dataUrl: string): string {
+  const comma = dataUrl.indexOf(",");
+  return comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
 }
 
 export default function App() {
@@ -44,6 +66,10 @@ export default function App() {
   // Default dropdown selection is DeepSeek
   const [selectedModelKey, setSelectedModelKey] = useState<string>("deepseek_r1_0528_free");
 
+  // Attachment state (composer-level)
+  const [imageAttachment, setImageAttachment] = useState<ImageAttachment | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   // Multi-chat state
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -52,6 +78,9 @@ export default function App() {
     () => chats.find((c) => c.id === activeChatId) ?? null,
     [chats, activeChatId]
   );
+
+  const activeChatSupportsImages = !!(activeChat && MODEL_SUPPORTS_IMAGE[activeChat.modelKey]);
+  const hasImage = !!imageAttachment;
 
   function createChat() {
     setError(null);
@@ -76,6 +105,57 @@ export default function App() {
     setChats((prev) => [...prev, newChat]);
     setActiveChatId(newChat.id);
     setInput("");
+    setImageAttachment(null); // keep attachments scoped to the composer/chat
+  }
+
+  function openFilePicker() {
+    setError(null);
+    if (!activeChat) {
+      setError("Create a chat first (+) and select a model.");
+      return;
+    }
+    fileInputRef.current?.click();
+  }
+
+  async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    setError(null);
+    const file = e.target.files?.[0];
+    // Allow selecting the same file again
+    e.target.value = "";
+
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("Please attach an image file (png/jpg/webp).");
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_BYTES) {
+      setError("Image is too large. Please use an image under 5MB.");
+      return;
+    }
+
+    // Read as Data URL for preview and base64 extraction
+    const dataUrl: string = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Failed to read the selected file."));
+      reader.onload = () => resolve(String(reader.result));
+      reader.readAsDataURL(file);
+    });
+
+    const base64 = dataUrlToBase64(dataUrl);
+
+    setImageAttachment({
+      name: file.name,
+      mimeType: file.type,
+      dataBase64: base64,
+      dataUrl,
+      sizeBytes: file.size,
+    });
+  }
+
+  function removeAttachment() {
+    setImageAttachment(null);
   }
 
   async function handleSend() {
@@ -87,19 +167,38 @@ export default function App() {
       return;
     }
 
+    // If an image is attached, only allow sending on image-capable models (Molmo)
+    if (hasImage && !activeChatSupportsImages) {
+      setError("Image input is only supported with Molmo. Create a Molmo chat to send images.");
+      return;
+    }
+
     setError(null);
 
     // Snapshot active chat and its model at send time
     const chatIdAtSend = activeChat.id;
     const modelKeyAtSend = activeChat.modelKey;
     const modelLabelAtSend = activeChat.modelLabel;
+    const imageAtSend = imageAttachment;
 
     // Optimistically append user message to that chat
     setInput("");
+    setImageAttachment(null);
+
     setChats((prev) =>
       prev.map((c) =>
         c.id === chatIdAtSend
-          ? { ...c, messages: [...c.messages, { role: "user", content: text }] }
+          ? {
+              ...c,
+              messages: [
+                ...c.messages,
+                {
+                  role: "user",
+                  content: text,
+                  ...(imageAtSend ? { imageDataUrl: imageAtSend.dataUrl, imageAlt: imageAtSend.name } : {}),
+                },
+              ],
+            }
           : c
       )
     );
@@ -107,15 +206,20 @@ export default function App() {
     setIsSending(true);
 
     try {
+      const body: any = { message: text, model: modelKeyAtSend };
+      if (imageAtSend) {
+        body.image = { mime_type: imageAtSend.mimeType, data_base64: imageAtSend.dataBase64 };
+      }
+
       const res = await fetch("http://localhost:8000/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, model: modelKeyAtSend }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
-        const body = await res.text();
-        throw new Error(`HTTP ${res.status}: ${body}`);
+        const t = await res.text();
+        throw new Error(`HTTP ${res.status}: ${t}`);
       }
 
       const data: { reply: string } = await res.json();
@@ -148,6 +252,18 @@ export default function App() {
       handleSend();
     }
   }
+
+  const sendDisabled =
+    isSending ||
+    !activeChat ||
+    !input.trim() ||
+    (hasImage && !activeChatSupportsImages);
+
+  const sendTitle = !activeChat
+    ? "Create a chat first"
+    : hasImage && !activeChatSupportsImages
+      ? "Images are only supported with Molmo"
+      : "Send message";
 
   return (
     <div className="container">
@@ -198,7 +314,11 @@ export default function App() {
               return (
                 <button
                   key={c.id}
-                  onClick={() => setActiveChatId(c.id)}
+                  onClick={() => {
+                    setActiveChatId(c.id);
+                    setError(null);
+                    setImageAttachment(null);
+                  }}
                   disabled={isSending && isActive} // keep active tab stable while sending
                   className={`tab ${isActive ? "tabActive" : ""}`}
                   title={`Model: ${c.modelLabel}`}
@@ -220,6 +340,11 @@ export default function App() {
                 <div style={{ marginBottom: 8 }}>
                   This chat uses: <b>{activeChat.modelLabel}</b>
                 </div>
+                {MODEL_SUPPORTS_IMAGE[activeChat.modelKey] ? (
+                  <div className="hintOk">This model supports image input.</div>
+                ) : (
+                  <div className="hint">This model is text-only.</div>
+                )}
                 No messages yet.
               </div>
             ) : (
@@ -229,6 +354,13 @@ export default function App() {
                     <span className="badge">{m.role === "user" ? "You" : "Model"}</span>
                     <span>{m.role === "user" ? "User" : m.modelLabel ?? "Model"}</span>
                   </div>
+
+                  {m.role === "user" && m.imageDataUrl && (
+                    <div className="imgBubble" title={m.imageAlt ?? "attachment"}>
+                      <img src={m.imageDataUrl} alt={m.imageAlt ?? "attachment"} />
+                    </div>
+                  )}
+
                   <div className="content">{m.content}</div>
                 </div>
               ))
@@ -240,22 +372,65 @@ export default function App() {
 
           {/* Composer */}
           <div className="composer">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={onKeyDown}
-              placeholder={activeChat ? "Mesaj yaz..." : "Create a chat first using the plus button at the top"}
-              rows={3}
-              disabled={isSending || !activeChat}
-            />
-            <button
-              className="btn btnPrimary sendBtn"
-              onClick={handleSend}
-              disabled={isSending || !activeChat || !input.trim()}
-              title={!activeChat ? "Create a chat first" : "Send message"}
-            >
-              {isSending ? "Sending..." : "Send"}
-            </button>
+            <div className="composerRow">
+              <button
+                className="iconBtn"
+                onClick={openFilePicker}
+                disabled={isSending || !activeChat}
+                title={!activeChat ? "Create a chat first" : "Attach an image"}
+                aria-label="Attach image"
+                type="button"
+              >
+                📎
+              </button>
+
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={onKeyDown}
+                placeholder={activeChat ? "Mesaj yaz..." : "Create a chat first using the plus button at the top"}
+                rows={3}
+                disabled={isSending || !activeChat}
+              />
+
+              <button
+                className="btn btnPrimary sendBtn"
+                onClick={handleSend}
+                disabled={sendDisabled}
+                title={sendTitle}
+                type="button"
+              >
+                {isSending ? "Sending..." : "Send"}
+              </button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="fileInput"
+                onChange={onPickFile}
+              />
+            </div>
+
+            {imageAttachment && (
+              <div className={`attachmentRow ${activeChatSupportsImages ? "" : "attachmentRowWarn"}`}>
+                <div className="attachmentPreview">
+                  <img src={imageAttachment.dataUrl} alt={imageAttachment.name} />
+                </div>
+                <div className="attachmentMeta">
+                  <div className="attachmentName">{imageAttachment.name}</div>
+                  <div className="attachmentSub">
+                    {imageAttachment.mimeType} • {(imageAttachment.sizeBytes / 1024).toFixed(0)} KB
+                    {!activeChatSupportsImages && (
+                      <span className="attachmentWarnText"> • Only Molmo can send images</span>
+                    )}
+                  </div>
+                </div>
+                <button className="iconBtn iconBtnDanger" onClick={removeAttachment} type="button" title="Remove">
+                  ✕
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

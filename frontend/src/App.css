@@ -311,8 +311,15 @@ kbd {
 /* Composer */
 .composer {
   display: flex;
+  flex-direction: column;
   gap: 10px;
   margin-top: 12px;
+}
+
+.composerRow {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
 }
 
 textarea {
@@ -338,6 +345,133 @@ textarea:focus {
 
 .sendBtn {
   min-width: 120px;
+}
+
+.iconBtn {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.iconBtn:hover {
+  background: rgba(255, 255, 255, 0.085);
+  border-color: var(--stroke2);
+  transform: translateY(-1px);
+}
+
+.iconBtn:active {
+  transform: translateY(0px);
+}
+
+.iconBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.iconBtnDanger {
+  border-color: rgba(255, 92, 124, 0.22);
+}
+
+.iconBtnDanger:hover {
+  background: rgba(255, 92, 124, 0.12);
+  border-color: rgba(255, 92, 124, 0.28);
+}
+
+.fileInput {
+  display: none;
+}
+
+.attachmentRow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.attachmentRowWarn {
+  border-color: rgba(255, 92, 124, 0.22);
+}
+
+.attachmentPreview {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  flex: 0 0 auto;
+}
+
+.attachmentPreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.attachmentMeta {
+  flex: 1;
+  min-width: 0;
+}
+
+.attachmentName {
+  font-size: 13px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachmentSub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.attachmentWarnText {
+  color: rgba(255, 92, 124, 0.95);
+}
+
+.imgBubble {
+  width: 220px;
+  max-width: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.imgBubble img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.hintOk {
+  color: rgba(34, 197, 94, 0.95);
+  font-size: 12px;
+  margin-bottom: 6px;
 }
 
 /* Error */
