@@ -76,3 +76,48 @@ http://localhost:5173
 
 That’s it.
 You can now open http://localhost:5173/ in your browser and start using the application.
+
+
+## OpenTelemetry Tracing (Jaeger)
+
+The backend uses **OpenTelemetry** to generate meaningful **traces and spans** for critical operations:
+
+- Incoming API requests to the FastAPI backend (`POST /chat`)
+- Outgoing HTTP calls from the backend to OpenRouter (`httpx`)
+- A custom application-level span (`chat.handle`) to clearly represent a single chat request
+
+These traces are exported to a locally running **Jaeger** instance via **OTLP**.
+
+---
+
+### 1) Start Jaeger locally (Docker)
+
+From the project root (where `docker-compose.yml` is located):
+
+```bash
+docker compose up -d
+```
+
+This starts a **Jaeger all-in-one** container with OTLP enabled.
+
+Jaeger UI will be available at:
+
+- http://localhost:16686
+
+---
+
+### 2) Generate and view traces
+
+1. Start the frontend and send a message through the UI.
+2. Open Jaeger UI: http://localhost:16686
+3. In the **Service** dropdown, select:
+
+   `local-chat-backend`
+
+4. Click **Find Traces**
+5. Open any trace to inspect spans such as:
+   - `POST /chat` (FastAPI auto-instrumentation)
+   - `chat.handle` (custom application span)
+   - `openrouter.call` / `HTTP POST` (outgoing OpenRouter request)
+
+Each request to `/chat` results in a single trace that clearly shows the full request lifecycle.
