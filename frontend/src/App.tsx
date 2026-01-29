@@ -35,7 +35,6 @@ type ImageAttachment = {
 const MODELS: ModelOption[] = [
   { key: "trinity_large_preview_free", label: "Trinity Large Preview (free)" },
   { key: "solar_pro_3_free", label: "Solar Pro 3" },
-  { key: "deepseek_r1_0528_free", label: "DeepSeek R1 0528 (free)" },
   { key: "molmo_2_8b_free", label: "Molmo 2 8B (free, vision)" },
 ];
 
@@ -63,8 +62,8 @@ export default function App() {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Default dropdown selection is DeepSeek
-  const [selectedModelKey, setSelectedModelKey] = useState<string>("deepseek_r1_0528_free");
+  // Default dropdown selection is Molmo 2 8B (free, vision)
+  const [selectedModelKey, setSelectedModelKey] = useState<string>("molmo_2_8b_free");
 
   // Attachment state (composer-level)
   const [imageAttachment, setImageAttachment] = useState<ImageAttachment | null>(null);
