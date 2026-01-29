@@ -48,10 +48,10 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL_MAP = {
     "trinity_large_preview_free": "arcee-ai/trinity-large-preview:free",
     "solar_pro_3_free": "upstage/solar-pro-3:free",
-    "deepseek_r1_0528_free": "deepseek/deepseek-r1-0528:free",
+    "molmo_2_8b_free": "allenai/molmo-2-8b:free",
 }
 
-DEFAULT_MODEL_KEY = "deepseek_r1_0528_free"
+DEFAULT_MODEL_KEY = "molmo_2_8b_free"
 
 # -------------------------
 # FastAPI app + instrumentation

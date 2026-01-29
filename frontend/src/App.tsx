@@ -151,120 +151,113 @@ export default function App() {
 
   return (
     <div className="container">
-      <h1 className="title">Local Chat</h1>
+      <div className="shell">
+        <header className="header">
+          <div className="brand">
+            <div className="titleWrap">
+              <h1 className="title">OpenRouter Client App</h1>
+              <div className="subtitle">FastAPI • React • OpenRouter</div>
+            </div>
+          </div>
 
-      {/* Top controls: + button on the left, dropdown on the right */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          marginBottom: 10,
-        }}
-      >
-        <button
-          onClick={createChat}
-          disabled={isSending || chats.length >= 5}
-          title={chats.length >= 5 ? "Max 5 chats" : "Create new chat"}
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            border: "1px solid #ddd",
-            background: "#111",
-            color: "#fff",
-            fontSize: 20,
-            lineHeight: "20px",
-            padding: 0,
-          }}
-        >
-          +
-        </button>
-
-        <select
-          value={selectedModelKey}
-          onChange={(e) => setSelectedModelKey(e.target.value)}
-          disabled={isSending}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 10,
-            border: "1px solid #ddd",
-            minWidth: 260,
-          }}
-        >
-          {MODELS.map((m) => (
-            <option key={m.key} value={m.key}>
-              {m.label}
-            </option>
-          ))}
-        </select>
-
-        <div style={{ marginLeft: "auto", opacity: 0.75, fontSize: 12 }}>
-          {activeChat ? `Active: ${activeChat.title} • ${activeChat.modelLabel}` : "No chat selected"}
-        </div>
-      </div>
-
-      {/* Tabs row below controls */}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-        {chats.map((c) => {
-          const isActive = c.id === activeChatId;
-          return (
+          <div className="controls">
             <button
-              key={c.id}
-              onClick={() => setActiveChatId(c.id)}
-              disabled={isSending && isActive} // optional: keep active tab stable while sending
-              style={{
-                padding: "8px 10px",
-                borderRadius: 12,
-                border: "1px solid #ddd",
-                background: isActive ? "#111" : "#fff",
-                color: isActive ? "#fff" : "#111",
-                cursor: "pointer",
-              }}
-              title={`Model: ${c.modelLabel}`}
+              className="btn btnPrimary btnIcon"
+              onClick={createChat}
+              disabled={isSending || chats.length >= 5}
+              title={chats.length >= 5 ? "Max 5 chats" : "Create new chat"}
+              aria-label="Create new chat"
             >
-              {c.title}
+              +
             </button>
-          );
-        })}
-      </div>
 
-      <div className="chatlog">
-        {!activeChat ? (
-          <div className="empty">
-            Create a chat with <b>+</b>, choose a model, then start messaging.
+            <select
+              className="select"
+              value={selectedModelKey}
+              onChange={(e) => setSelectedModelKey(e.target.value)}
+              disabled={isSending}
+              aria-label="Select model for new chats"
+              title="Select a model for the next chat you create"
+            >
+              {MODELS.map((m) => (
+                <option key={m.key} value={m.key}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+
+            <div className="spacer" />
           </div>
-        ) : activeChat.messages.length === 0 ? (
-          <div className="empty">
-            <div style={{ marginBottom: 6 }}>
-              This chat uses: <b>{activeChat.modelLabel}</b>
-            </div>
-            No messages yet.
+        </header>
+
+        <div className="body">
+          {/* Tabs row */}
+          <div className="tabs">
+            {chats.map((c) => {
+              const isActive = c.id === activeChatId;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setActiveChatId(c.id)}
+                  disabled={isSending && isActive} // keep active tab stable while sending
+                  className={`tab ${isActive ? "tabActive" : ""}`}
+                  title={`Model: ${c.modelLabel}`}
+                >
+                  {c.title}
+                </button>
+              );
+            })}
           </div>
-        ) : (
-          activeChat.messages.map((m, i) => (
-            <div key={i} className={`msg ${m.role}`}>
-              <div className="role">{m.role === "user" ? "You" : m.modelLabel ?? "Model"}</div>
-              <div className="content">{m.content}</div>
-            </div>
-          ))
-        )}
-      </div>
 
-      {error && <div className="error">Hata: {error}</div>}
+          {/* Chat log */}
+          <div className="chatlog" aria-live="polite">
+            {!activeChat ? (
+              <div className="empty">
+                Select a model from the dropdown, then click the <b>+</b> button to start a chat.
+              </div>
+            ) : activeChat.messages.length === 0 ? (
+              <div className="empty">
+                <div style={{ marginBottom: 8 }}>
+                  This chat uses: <b>{activeChat.modelLabel}</b>
+                </div>
+                No messages yet.
+              </div>
+            ) : (
+              activeChat.messages.map((m, i) => (
+                <div key={i} className={`msg ${m.role}`}>
+                  <div className="role">
+                    <span className="badge">{m.role === "user" ? "You" : "Model"}</span>
+                    <span>{m.role === "user" ? "User" : m.modelLabel ?? "Model"}</span>
+                  </div>
+                  <div className="content">{m.content}</div>
+                </div>
+              ))
+            )}
+          </div>
 
-      <div className="composer">
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder={activeChat ? "Mesaj yaz..." : "Önce + ile bir chat oluştur..."}
-          rows={3}
-          disabled={isSending || !activeChat}
-        />
-        <button onClick={handleSend} disabled={isSending || !activeChat || !input.trim()}>
-          {isSending ? "Sending..." : "Send"}
-        </button>
+          {/* Error */}
+          {error && <div className="error">Hata: {error}</div>}
+
+          {/* Composer */}
+          <div className="composer">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder={activeChat ? "Mesaj yaz..." : "Create a chat first using the plus button at the top"}
+              rows={3}
+              disabled={isSending || !activeChat}
+            />
+            <button
+              className="btn btnPrimary sendBtn"
+              onClick={handleSend}
+              disabled={isSending || !activeChat || !input.trim()}
+              title={!activeChat ? "Create a chat first" : "Send message"}
+            >
+              {isSending ? "Sending..." : "Send"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
